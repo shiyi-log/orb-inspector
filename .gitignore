@@ -1,0 +1,19 @@
+# 系统与编辑器文件
+.DS_Store
+.idea/
+.vscode/
+
+# Node.js 依赖、日志和临时输出
+node_modules/
+*.log
+npm-debug.log*
+
+# 原始第三方 REA 工作副本不随本项目分发
+third_party/rea/
+
+# OrbStack 样本和原始分析产物只保留在本地；公开仓库只提交明确选出的轻量文档
+artifacts/orbstack/*
+!artifacts/orbstack/README.zh-CN.md
+!artifacts/orbstack/ui-candidate-review.zh-CN.md
+!artifacts/orbstack/translations.zh-CN.json
+!artifacts/orbstack/translations.zh-CN.v9.validation.json

@@ -1,0 +1,42 @@
+name: 标签发布
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 构建并发布版本
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: orb-inspector/package-lock.json
+      - name: 安装依赖
+        working-directory: orb-inspector
+        run: npm ci
+      - name: 运行测试
+        working-directory: orb-inspector
+        run: npm test
+      - name: 打包源码
+        run: |
+          mkdir -p dist
+          tar --exclude='./.git' --exclude='./artifacts/orbstack/OrbStack_v2.2.5_21124_arm64.dmg' \
+            --exclude='./third_party/rea' -czf "dist/orb-inspector-${GITHUB_REF_NAME}.tar.gz" .
+          shasum -a 256 dist/* > dist/SHA256SUMS
+      - name: 创建 GitHub 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "orb-inspector $GITHUB_REF_NAME" \
+            --notes "本版本通过 macOS 测试套件，包含只读分析、候选审查和翻译映射校验。未包含 OrbStack 安装包或第三方 REA 工作副本。"

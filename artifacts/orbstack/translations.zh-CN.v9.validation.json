@@ -1,0 +1,213 @@
+{
+  "schema": "orb-inspector/translation-validation/v0.1",
+  "source": "OrbStack 2.2.5",
+  "target_language": "zh-CN",
+  "valid": true,
+  "entries": [
+    {
+      "id": "4f765ff2d9fb8a0e",
+      "source_text": "Welcome to OrbStack",
+      "candidate_text": "Welcome to OrbStack",
+      "translation": "欢迎使用 OrbStack",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "8fda624ce4cce247",
+      "source_text": "Seamless and efficient Docker and Linux on your Mac",
+      "candidate_text": "Seamless and efficient Docker and Linux on your Mac",
+      "translation": "在 Mac 上无缝、高效地使用 Docker 和 Linux",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "25fe73821471fb92",
+      "source_text": "Create a Linux machine",
+      "candidate_text": "Create a Linux machine",
+      "translation": "创建 Linux 虚拟机",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "5a6f81f249c88b23",
+      "source_text": "What do you want to use?",
+      "candidate_text": "What do you want to use?",
+      "translation": "你想使用什么？",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "a79398fc1084c329",
+      "source_text": "Containers",
+      "candidate_text": "Containers",
+      "translation": "容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "5b4c77e03d26ca50",
+      "source_text": "Select a Container",
+      "candidate_text": "Select a Container",
+      "translation": "选择容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "c99dd768de861101",
+      "source_text": "Go to Containers",
+      "candidate_text": "Go to Containers",
+      "translation": "前往容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "9923764bcce5bdba",
+      "source_text": "Looking for Docker?",
+      "candidate_text": "Looking for Docker?",
+      "translation": "在寻找 Docker？",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "31efc44411f14963",
+      "source_text": "Migrate from Docker Desktop",
+      "candidate_text": "Migrate from Docker Desktop",
+      "translation": "从 Docker Desktop 迁移",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "577cb7b3f009323a",
+      "source_text": "Migrate from Docker Desktop",
+      "candidate_text": "Migrate from Docker Desktop",
+      "translation": "从 Docker Desktop 迁移",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "9472ac7841fe7f02",
+      "source_text": "Copy your existing containers, volumes, and images to OrbStack.",
+      "candidate_text": "Copy your existing containers, volumes, and images to OrbStack.",
+      "translation": "将现有的容器、卷和镜像复制到 OrbStack。",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "f18755e377f4708f",
+      "source_text": "Enable Kubernetes",
+      "candidate_text": "Enable Kubernetes",
+      "translation": "启用 Kubernetes",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "b0d7ea2fc304cf2a",
+      "source_text": "Start Kubernetes",
+      "candidate_text": "Start Kubernetes",
+      "translation": "启动 Kubernetes",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "fc235bd02f8f31e6",
+      "source_text": "Show Stopped Containers",
+      "candidate_text": "Show Stopped Containers",
+      "translation": "显示已停止的容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "9c64ab5ca7b8da10",
+      "source_text": "Check for Updates",
+      "candidate_text": "Check for Updates",
+      "translation": "检查更新",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "c7d5c26bd4113bc5",
+      "source_text": "Update Frequency",
+      "candidate_text": "Update Frequency",
+      "translation": "更新频率",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "60d937615862e2c9",
+      "source_text": "Use containerd image store",
+      "candidate_text": "Use containerd image store",
+      "translation": "使用 containerd 镜像存储",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "dccae5d4797268f1",
+      "source_text": "Starting containers",
+      "candidate_text": "Starting containers",
+      "translation": "正在启动容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "56d563d16b8e1cbf",
+      "source_text": "No Containers Selected",
+      "candidate_text": "No Containers Selected",
+      "translation": "未选择容器",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "7fb4374c1aa40211",
+      "source_text": "No Ports or Mounts",
+      "candidate_text": "No Ports or Mounts",
+      "translation": "没有端口或挂载",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "311df9b772967c72",
+      "source_text": "Import from File",
+      "candidate_text": "Import from File",
+      "translation": "从文件导入",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "9b02c15a9521c965",
+      "source_text": "Apply and Restart",
+      "candidate_text": "Apply and Restart",
+      "translation": "应用并重启",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "3cb11742131a2634",
+      "source_text": "Install Command-Line Tools?",
+      "candidate_text": "Install Command-Line Tools?",
+      "translation": "要安装命令行工具吗？",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "id": "829019887514b887",
+      "source_text": "Command-Line Tools Installed",
+      "candidate_text": "Command-Line Tools Installed",
+      "translation": "命令行工具已安装",
+      "valid": true,
+      "diagnostics": []
+    }
+  ],
+  "diagnostics": [],
+  "summary": {
+    "mappings": 24,
+    "valid": 24,
+    "invalid": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "limitations": [
+    "Validation checks the translation map against retained candidate evidence only.",
+    "A valid mapping does not establish that the string is reachable in a runtime UI.",
+    "No binary or application files are modified by this operation."
+  ]
+}

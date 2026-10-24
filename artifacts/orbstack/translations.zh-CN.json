@@ -1,0 +1,98 @@
+{
+  "4f765ff2d9fb8a0e": {
+    "text": "Welcome to OrbStack",
+    "translation": "欢迎使用 OrbStack"
+  },
+  "8fda624ce4cce247": {
+    "text": "Seamless and efficient Docker and Linux on your Mac",
+    "translation": "在 Mac 上无缝、高效地使用 Docker 和 Linux"
+  },
+  "25fe73821471fb92": {
+    "text": "Create a Linux machine",
+    "translation": "创建 Linux 虚拟机"
+  },
+  "5a6f81f249c88b23": {
+    "text": "What do you want to use?",
+    "translation": "你想使用什么？"
+  },
+  "a79398fc1084c329": {
+    "text": "Containers",
+    "translation": "容器"
+  },
+  "5b4c77e03d26ca50": {
+    "text": "Select a Container",
+    "translation": "选择容器"
+  },
+  "c99dd768de861101": {
+    "text": "Go to Containers",
+    "translation": "前往容器"
+  },
+  "9923764bcce5bdba": {
+    "text": "Looking for Docker?",
+    "translation": "在寻找 Docker？"
+  },
+  "31efc44411f14963": {
+    "text": "Migrate from Docker Desktop",
+    "translation": "从 Docker Desktop 迁移"
+  },
+  "577cb7b3f009323a": {
+    "text": "Migrate from Docker Desktop",
+    "translation": "从 Docker Desktop 迁移"
+  },
+  "9472ac7841fe7f02": {
+    "text": "Copy your existing containers, volumes, and images to OrbStack.",
+    "translation": "将现有的容器、卷和镜像复制到 OrbStack。"
+  },
+  "f18755e377f4708f": {
+    "text": "Enable Kubernetes",
+    "translation": "启用 Kubernetes"
+  },
+  "b0d7ea2fc304cf2a": {
+    "text": "Start Kubernetes",
+    "translation": "启动 Kubernetes"
+  },
+  "fc235bd02f8f31e6": {
+    "text": "Show Stopped Containers",
+    "translation": "显示已停止的容器"
+  },
+  "9c64ab5ca7b8da10": {
+    "text": "Check for Updates",
+    "translation": "检查更新"
+  },
+  "c7d5c26bd4113bc5": {
+    "text": "Update Frequency",
+    "translation": "更新频率"
+  },
+  "60d937615862e2c9": {
+    "text": "Use containerd image store",
+    "translation": "使用 containerd 镜像存储"
+  },
+  "dccae5d4797268f1": {
+    "text": "Starting containers",
+    "translation": "正在启动容器"
+  },
+  "56d563d16b8e1cbf": {
+    "text": "No Containers Selected",
+    "translation": "未选择容器"
+  },
+  "7fb4374c1aa40211": {
+    "text": "No Ports or Mounts",
+    "translation": "没有端口或挂载"
+  },
+  "311df9b772967c72": {
+    "text": "Import from File",
+    "translation": "从文件导入"
+  },
+  "9b02c15a9521c965": {
+    "text": "Apply and Restart",
+    "translation": "应用并重启"
+  },
+  "3cb11742131a2634": {
+    "text": "Install Command-Line Tools?",
+    "translation": "要安装命令行工具吗？"
+  },
+  "829019887514b887": {
+    "text": "Command-Line Tools Installed",
+    "translation": "命令行工具已安装"
+  }
+}
