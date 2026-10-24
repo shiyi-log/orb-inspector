@@ -7,15 +7,15 @@
 - **目的：** 面向 macOS 应用本地化研究和静态逆向前置检查的只读工具，读取 `.app` 或 `.dmg`，生成应用清单、代码签名摘要、Mach-O 字符串与有限引用线索、Assets.car 元数据、翻译候选、人工审查队列和翻译映射校验结果。
 - **安全边界：** 只读分析；不修改原始 App、不执行目标程序、不重新签名、不绕过授权或付费保护。该边界由根目录 `README.md`、`orb-inspector/README.md` 和 `orb-inspector/README.zh-CN.md` 说明。
 - **负责人：** 待确认。
-- **状态：** `active`（`0.2.0` 本地实现已完成，公开远端仍需接收本版本提交并创建 Release；运行时 UI、签名变化和自动更新兼容性仍待独立验收）。
+- **状态：** `active`（`0.2.0` 已推送并完成 GitHub Release；运行时 UI、签名变化和自动更新兼容性仍待独立验收）。
 
 ## 当前基线
 
-_截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本分析产物和 GitHub 外部证据。_
+_截至 2026-10-24 15:41:48 CST（+0800）。证据来自本地命令、样本分析产物和 GitHub 外部证据。_
 
 - **分支 / 提交：** `main` / `49d2059037288c1c28f6f473810cf95744cb0079`，提交消息为“增加本地化资源解析与 Mach-O 边界校验”。
-- **工作区：** 本次台账更新尚未提交；代码、测试、版本和说明文件已在上述实现提交中完成，未跟踪的原始 DMG 和 v11 JSON 只保留在本地忽略目录。
-- **远端发布：** 公开仓库、`main`、`v0.1.0` 标签和 GitHub Release 已观察到；`0.2.0` 实现提交尚未推送，Release 资产校验待本次发布后补记。
+- **工作区：** 本次发布验收后的台账更新尚未提交；代码、测试、版本和说明文件已推送到 `main`，未跟踪的原始 DMG 和 v11 JSON 只保留在本地忽略目录。
+- **远端发布：** 公开仓库、`main`、`v0.1.0` 和 `v0.2.0` 标签及 GitHub Release 均已观察到；`v0.2.0` 资产摘要已下载并校验通过。
 - **实现栈：** Node.js ESM；`orb-inspector/package.json` 声明 `node >=22`、`npm test` 使用 `node --test`，可执行入口为 `src/cli.mjs`。项目不含根目录 `package.json`；依赖清单仅有 `orb-inspector/package-lock.json` 的空依赖根记录。
 - **外部命令依赖：** README 和源码说明涉及 macOS `hdiutil`、`codesign`、`assetutil` 等只读检查能力；这些命令在本次台账维护中未逐项进行运行时验收。
 - **HTTP API：** 当前扫描到的入口为 CLI 和 ESM 模块，未发现 HTTP server、路由或端口配置；HTTP API 是否需要以及其正式契约均为 `待确认`。
@@ -28,7 +28,7 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 | 翻译候选分类、人工审查队列和翻译映射校验 | `complete` | 待确认 | 待确认 | `src/candidates.mjs`、`src/review-queue.mjs`、`src/translation-validation.mjs`；本地测试 23/23 通过。 |
 | 本地化资源解析与 Mach-O 边界保护 | `complete` | 待确认 | 2026-10-24 | `src/analyzer.mjs` 支持文本及二进制 plist `.strings`、`.stringsdict` 摘要、编码记录和 Bundle 范围校验；`src/macho.mjs` 记录截断和非法范围限制；本地测试 23/23 通过。 |
 | 形成 `0.2.0` 本地版本基线 | `complete` | 待确认 | 2026-10-24 | 根目录 `VERSION`、`orb-inspector/package.json`、`package-lock.json` 和 `CHANGELOG.md` 均记录 `0.2.0`。 |
-| 推送 `0.2.0` 并创建 GitHub Release | `planned` | 待确认 | 2026-10-24 | 实现提交为 `49d2059`；待推送后等待 CI 成功，再创建 `v0.2.0` 标签和 Release。 |
+| 推送 `0.2.0` 并创建 GitHub Release | `complete` | 待确认 | 2026-10-24 | 主分支 CI Run `40074939225` 和标签发布 Run `40075009995` 均成功；标签 `v0.2.0` 已创建 Release，资产摘要已校验。 |
 | GitHub Actions 持续集成 | `complete` | 待确认 | 2026-10-24 | Run `40071400278` 对 `34bcb99` 成功；Run `40071857123` 对发布校验修复提交 `dcbf791` 成功，Job“Node.js 测试”通过。 |
 | 标签构建并创建 GitHub Release | `complete` | 待确认 | 2026-10-24 | Run `40071436013` 成功；标签 `v0.1.0` 创建 Release，包含源码压缩包和 `SHA256SUMS`。 |
 | 运行时 UI 显示、代码签名和自动更新兼容性验收 | `planned` | 待确认 | 待确认 | README 明确静态字符串和引用线索不能替代运行时观察；当前未观察到独立验收记录。 |
@@ -54,7 +54,7 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 
 | 版本 | 日期 | 提交 / 标签 | 变更摘要 | 版本真相源 | 迁移 | API 兼容性 | CI / 验证 | 发布状态 |
 |---|---|---|---|---|---|---|---|---|
-| `0.2.0` | 2026-10-24 | 提交 `49d2059037288c1c28f6f473810cf95744cb0079`；标签待创建 | 新增 `.strings` / `.stringsdict` 文本和二进制 plist 静态解析、本地化汇总、Bundle 范围及 4 MiB 读取限制；增强 fat/thin Mach-O 截断和引用范围保护；新增中文测试与 v11 样本证据 | 根目录 `VERSION`；`orb-inspector/package.json`、`package-lock.json`、`CHANGELOG.md` 均为 `0.2.0` | 不适用；仓库未观察到数据库或迁移文件 | 新增报告字段 `localization_analysis`；旧字段保持兼容，完整 API schema 仍待补充 | 本地 23 个测试通过；随机截断 Mach-O 检查通过；v11 OrbStack 报告、审查队列和翻译校验均已生成；远端 CI / Release 待本次推送后验证 | `local-only` |
+| `0.2.0` | 2026-10-24 | 提交 `49d2059037288c1c28f6f473810cf95744cb0079`；标签 `v0.2.0`（对象 `3b1808d1b8f0ca7ca99085dd6bb7cd56dda6670f`，指向提交 `923ad6e82ba85fe7ac521d2345c131b1894dec11`） | 新增 `.strings` / `.stringsdict` 文本和二进制 plist 静态解析、本地化汇总、Bundle 范围及 4 MiB 读取限制；增强 fat/thin Mach-O 截断和引用范围保护；新增中文测试与 v11 样本证据 | 根目录 `VERSION`；`orb-inspector/package.json`、`package-lock.json`、`CHANGELOG.md` 均为 `0.2.0` | 不适用；仓库未观察到数据库或迁移文件 | 新增报告字段 `localization_analysis`；旧字段保持兼容，完整 API schema 仍待补充 | 本地 23 个测试通过；随机截断 Mach-O 检查通过；CI Run `40074939225`、标签发布 Run `40075009995` 成功；Release 资产 `orb-inspector-v0.2.0.tar.gz` 摘要 `1cf48246f7d2521b2712a46d0501ccfe08aa2e885f03a37430c004a529a4c76b`，`SHA256SUMS` 摘要 `f0f9aa51930a8970c58f2cb1773868b32a588cbbb21c5e50f1cbcafcf2411234` | `published`；Release：`https://github.com/shiyi-log/orb-inspector/releases/tag/v0.2.0` |
 | `0.1.0` | 2026-10-24 | 提交 `34bcb9921769de7cfb25413aff10681d849c0e7a`；标签 `v0.1.0`（对象 `81d07a96a400886bc5ddbf79e13a196e323d5862`） | 首个公开版本：`.app` / `.dmg` 只读分析、资源与签名摘要、Mach-O 字符串和有限指针线索、独立 `source_evidence`、Assets.car 元数据、翻译候选、人工审查队列、翻译映射校验，以及 CI / 标签发布 workflow | 根目录 `VERSION`；`orb-inspector/package.json`、`package-lock.json`、`CHANGELOG.md` 均为 `0.1.0` | 不适用；仓库未观察到数据库或迁移文件 | `unknown`；尚未有正式 API schema 或兼容性承诺 | 本地 14 个测试通过；CI Run `40071400278`、标签发布 Run `40071436013` 成功；Release 资产摘要已下载校验 | `published`；Release：`https://github.com/shiyi-log/orb-inspector/releases/tag/v0.1.0` |
 
 `CHANGELOG.md` 明确说明本版本不包含 OrbStack 安装包，也未修改或重签名任何 OrbStack 应用。版本字符串、通过本地测试和 workflow 配置均不等同于 CI 健康、远端发布或独立验收。
@@ -88,7 +88,7 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 | 2026-10-24 | 版本基线为 `0.2.0` | `cat VERSION`；`node -p 'require("./package.json").version'`；`package-lock.json`；`CHANGELOG.md` | 根目录与嵌套项目版本一致 | 版本字符串不证明提交、CI 或发布。 |
 | 2026-10-24 | 本地测试通过 | 在 `orb-inspector/` 执行 `npm test` | 23 个测试通过，0 失败、0 跳过 | 仅为本地 Node.js 测试；未证明 GitHub Actions 或生产环境。 |
 | 2026-10-24 | CLI 入口可用 | 在 `orb-inspector/` 执行 `node src/cli.mjs --help` | 成功列出 `analyze`、`review`、`validate` 及选项 | 未使用真实 App / DMG 样本完成端到端运行时验收。 |
-| 2026-10-24 | 工作区与 Git 状态已核对 | `git status --short --branch`、`git branch --show-current`、`git log`、`git remote -v` | 分支为 `main`；实现提交为 `49d2059037288c1c28f6f473810cf95744cb0079`；远端为 `origin`；台账更新待提交 | `v0.1.0` 标签仍指向旧发布提交；`v0.2.0` 尚未创建。 |
+| 2026-10-24 | 工作区与 Git 状态已核对 | `git status --short --branch`、`git branch --show-current`、`git log`、`git remote -v` | 分支为 `main`；已推送提交为 `923ad6e82ba85fe7ac521d2345c131b1894dec11`；远端为 `origin`；本次发布验收后的台账更新待提交 | `v0.1.0` 和 `v0.2.0` 标签均已创建，当前台账提交随后补充发布证据。 |
 | 2026-10-24 | CI / Release workflow 已验证 | `.github/workflows/ci.yml`、`.github/workflows/release.yml`；GitHub Actions Runs `40071400278`、`40071857123`、`40071436013` | 主分支 CI、发布校验修复后的 CI、标签发布均为 `success`；Release 页面已生成 | 这些结果证明仓库发布流程成功，不证明 OrbStack 运行时 UI 或本地化补丁安全。 |
 | 2026-10-24 | 未发现 HTTP API 入口 | `README.md`、`orb-inspector/README*.md`、`src/cli.mjs`、源文件清单和 workflow | 观察到 CLI / ESM 模块；未观察到 HTTP server、路由或端口 | “未发现”不等于需求已决策；HTTP API 需求仍待确认。 |
 | 2026-10-24 | v10 静态样本证据已生成 | 在 `orb-inspector/` 执行 `analyze`、`review`、`validate`；本地 `artifacts/orbstack/*-v10.json` | OrbStack 2.2.5 Build 21124 arm64：提取 17,783 条字符串、保留 10,000 条；UI 候选 2,937 条；审查队列 2,937 条；中文映射 24/24 有效 | 仍然只有静态字符串和启发式引用线索，不能证明运行时 UI 显示或补丁安全性。 |
@@ -98,7 +98,8 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 | 2026-10-24 | CI 与标签发布完成 | GitHub Actions Run `40071400278`、`40071857123`、`40071436013` | 两次主分支 CI 和一次标签发布均为 `success`；Release 页面已公开 | 运行时 UI、代码签名变化和自动更新兼容性仍未验收。 |
 | 2026-10-24 | 修正并验证 Release 校验清单 | `.github/workflows/release.yml`；Release `v0.1.0` 资产 `SHA256SUMS`；`shasum -a 256 -c SHA256SUMS` | 源码压缩包摘要校验为 `OK`，清单文件使用可直接下载验证的文件名 | 当前只验证发布资产完整性，不等于 OrbStack 运行时验收。 |
 | 2026-10-24 | 生成 v11 静态分析证据 | `orb-inspector` CLI、OrbStack 2.2.5 Build 21124 arm64 DMG；`artifacts/orbstack/*-v11.json` | 35 个本地化 `.strings` 文件均以二进制 plist 解析，合计 1,695 个键；保留 10,000 条 Mach-O 候选，其中 UI 候选 2,937 条；审查队列 2,937 条；中文映射 24/24 有效 | 原始 DMG、完整 JSON 和 REA 工作副本仍只保留本地；静态证据不证明运行时 UI 或补丁安全。 |
-| 2026-10-24 | 完成本地化与 Mach-O 加固验证 | `npm test`；随机 0 至 1024 字节截断输入检查；`git diff --check` | 23 个测试通过；随机截断输入未抛出异常；差异无空白错误 | 远端 CI、正式标签和 Release 仍待本次提交推送后验证。 |
+| 2026-10-24 | 完成本地化与 Mach-O 加固验证 | `npm test`；随机 0 至 1024 字节截断输入检查；`git diff --check` | 23 个测试通过；随机截断输入未抛出异常；差异无空白错误 | 该行记录本地门槛；远端 CI 和 Release 已在后续证据行完成验证。 |
+| 2026-10-24 | 完成 `0.2.0` 远端 CI/CD 和资产校验 | GitHub Actions Run `40074939225`、`40075009995`；Release `v0.2.0`；`shasum -a 256 -c SHA256SUMS` | 主分支 CI 和标签发布均为 `success`；Release 已公开；源码压缩包摘要校验为 `OK` | 这只证明仓库 CI/CD 和资产完整性，不证明 OrbStack 运行时 UI、本地化补丁安全或自动更新兼容性。 |
 
 ## 下一步 / 待办
 
@@ -107,7 +108,7 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 - [x] 运行 GitHub Actions 并记录 workflow、提交 SHA、结论和产物；负责人：待确认；完成：2026-10-24。
 - [x] 创建 `v0.1.0` 标签 / GitHub Release，并登记 Release 资产及 SHA-256；负责人：待确认；完成：2026-10-24。
 - [x] 完成本地化资源解析、Bundle 范围校验和 Mach-O 边界保护；负责人：待确认；完成：2026-10-24；提交：`49d2059`。
-- [ ] 推送 `0.2.0`、等待 CI 成功并创建 `v0.2.0` GitHub Release；负责人：待确认；截止：2026-10-24。
+- [x] 推送 `0.2.0`、等待 CI 成功并创建 `v0.2.0` GitHub Release；负责人：待确认；完成：2026-10-24；CI Run：`40074939225`；发布 Run：`40075009995`。
 - [ ] 对真实 `.app` / `.dmg` 隔离副本完成 macOS 工具链、样本哈希、代码签名和运行时 UI 验收；负责人：待确认；截止：待确认。
 - [ ] 确认 HTTP API 是否属于项目范围；若属于范围，补充路由、认证、请求响应、错误和兼容性文档；负责人：待确认；截止：待确认。
 - [ ] 若模块接口供外部调用，补充稳定字段 / 错误契约和独立 schema；负责人：待确认；截止：待确认。
@@ -120,3 +121,4 @@ _截至 2026-10-24 15:35:39 CST（+0800）。证据来自本地命令、样本�
 | 2026-10-24 | 更新 v10 静态证据、中文化状态和公开远端事实 | 新增 `source_evidence` 传递、中文测试名称、中文许可证说明；`0171419d698785484da92c42bbbf9d4ee08d4960` 已推送到 `shiyi-log/orb-inspector` |
 | 2026-10-24 | 完成 CI/CD 发布验收并修正校验清单 | CI Run `40071400278`、`40071857123`、标签发布 Run `40071436013` 成功；`v0.1.0` Release 资产摘要下载校验成功；发布流程改为只写入压缩包文件名 |
 | 2026-10-24 | 完成 `0.2.0` 本地实现和 v11 证据生成 | 提交 `49d2059` 增加本地化资源解析、二进制 plist 支持、Bundle 路径边界、Mach-O 截断保护和 23 个中文测试；v11 报告记录 1,695 个本地化键、2,937 条 UI 候选、24/24 翻译映射有效；待推送后补充 CI / Release 证据 |
+| 2026-10-24 | 完成 `0.2.0` 远端发布与资产校验 | `main` 已推送至 `923ad6e`；CI Run `40074939225`、标签发布 Run `40075009995` 成功；`v0.2.0` Release 资产 `SHA256SUMS` 校验为 `OK` |
