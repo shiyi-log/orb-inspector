@@ -32,7 +32,7 @@ jobs:
           mkdir -p dist
           tar --exclude='./.git' --exclude='./artifacts/orbstack/OrbStack_v2.2.5_21124_arm64.dmg' \
             --exclude='./third_party/rea' -czf "dist/orb-inspector-${GITHUB_REF_NAME}.tar.gz" .
-          shasum -a 256 dist/* > dist/SHA256SUMS
+          (cd dist && shasum -a 256 "orb-inspector-${GITHUB_REF_NAME}.tar.gz" > SHA256SUMS)
       - name: 创建 GitHub 发布
         env:
           GH_TOKEN: ${{ github.token }}
