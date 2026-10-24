@@ -7,13 +7,13 @@
 - **目的：** 面向 macOS 应用本地化研究和静态逆向前置检查的只读工具，读取 `.app` 或 `.dmg`，生成应用清单、代码签名摘要、Mach-O 字符串与有限引用线索、Assets.car 元数据、翻译候选、人工审查队列和翻译映射校验结果。
 - **安全边界：** 只读分析；不修改原始 App、不执行目标程序、不重新签名、不绕过授权或付费保护。该边界由根目录 `README.md`、`orb-inspector/README.md` 和 `orb-inspector/README.zh-CN.md` 说明。
 - **负责人：** 待确认。
-- **状态：** `active`（本地代码和测试已有证据；尚无提交、远端、CI 运行或正式发布证据）。
+- **状态：** `active`（公开仓库、CI 和 `v0.1.0` Release 已完成；运行时 UI、签名变化和自动更新兼容性仍待独立验收）。
 
 ## 当前基线
 
 _截至 2026-10-24 14:52:43 CST（+0800）。证据来自本地命令和 GitHub 外部证据。_
 
-- **分支 / 提交：** `main` / `dcbf7913743004082ea63e6c67084c5b3e23209b`。
+- **分支 / 提交：** `main` / `0bce5cd5e6b29ca2e4d6a12dd331faf4fd329e16`。
 - **工作区：** `clean`；初始公开提交已推送，当前本地分支跟踪 `origin/main`。
 - **远端发布：** 公开仓库、`main`、`v0.1.0` 标签和 GitHub Release 均已观察到；Release 资产校验已完成。
 - **实现栈：** Node.js ESM；`orb-inspector/package.json` 声明 `node >=22`、`npm test` 使用 `node --test`，可执行入口为 `src/cli.mjs`。项目不含根目录 `package.json`；依赖清单仅有 `orb-inspector/package-lock.json` 的空依赖根记录。
@@ -83,12 +83,13 @@ _截至 2026-10-24 14:52:43 CST（+0800）。证据来自本地命令和 GitHub 
 | 2026-10-24 | 版本基线为 `0.1.0` | `cat VERSION`；`node -p 'require("./package.json").version'`；`package-lock.json`；`CHANGELOG.md` | 根目录与嵌套项目版本一致 | 版本字符串不证明提交、CI 或发布。 |
 | 2026-10-24 | 本地测试通过 | 在 `orb-inspector/` 执行 `npm test` | 14 个测试通过，0 失败、0 跳过 | 仅为本地 Node.js 测试；未证明 GitHub Actions 或生产环境。 |
 | 2026-10-24 | CLI 入口可用 | 在 `orb-inspector/` 执行 `node src/cli.mjs --help` | 成功列出 `analyze`、`review`、`validate` 及选项 | 未使用真实 App / DMG 样本完成端到端运行时验收。 |
-| 2026-10-24 | 工作区与 Git 状态已核对 | `git status --short --branch`、`git branch --show-current`、`git log`、`git remote -v` | 分支为 `main`；提交为 `0171419d698785484da92c42bbbf9d4ee08d4960`；远端为 `origin`；工作区干净 | 标签、CI 和 Release 仍需独立核对。 |
+| 2026-10-24 | 工作区与 Git 状态已核对 | `git status --short --branch`、`git branch --show-current`、`git log`、`git remote -v` | 分支为 `main`；提交为 `0bce5cd5e6b29ca2e4d6a12dd331faf4fd329e16`；远端为 `origin`；工作区干净 | `v0.1.0` 标签指向发布提交 `34bcb99`；当前主分支包含台账和工作流修复。 |
 | 2026-10-24 | CI / Release workflow 已验证 | `.github/workflows/ci.yml`、`.github/workflows/release.yml`；GitHub Actions Runs `40071400278`、`40071857123`、`40071436013` | 主分支 CI、发布校验修复后的 CI、标签发布均为 `success`；Release 页面已生成 | 这些结果证明仓库发布流程成功，不证明 OrbStack 运行时 UI 或本地化补丁安全。 |
 | 2026-10-24 | 未发现 HTTP API 入口 | `README.md`、`orb-inspector/README*.md`、`src/cli.mjs`、源文件清单和 workflow | 观察到 CLI / ESM 模块；未观察到 HTTP server、路由或端口 | “未发现”不等于需求已决策；HTTP API 需求仍待确认。 |
 | 2026-10-24 | v10 静态样本证据已生成 | 在 `orb-inspector/` 执行 `analyze`、`review`、`validate`；本地 `artifacts/orbstack/*-v10.json` | OrbStack 2.2.5 Build 21124 arm64：提取 17,783 条字符串、保留 10,000 条；UI 候选 2,937 条；审查队列 2,937 条；中文映射 24/24 有效 | 仍然只有静态字符串和启发式引用线索，不能证明运行时 UI 显示或补丁安全性。 |
 | 2026-10-24 | 项目自身中文化已完成 | `src/*.mjs`、`test/*.mjs`、README、变更记录、`LICENSE.zh-CN.md` | 项目日志、注释、测试名称、说明文件和发布说明使用中文；字段名、命令参数、外部命令原始输出和样本原文保留为机器契约或观察证据 | 外部工具原始输出和被分析应用字符串不属于项目自定义说明，未强行翻译。 |
-| 2026-10-24 | 创建公开远端并推送初始版本 | `gh repo create shiyi-log/orb-inspector --public ... --push`；`git remote -v` | 公开仓库已创建，`main` 已推送，远端 URL 为 `https://github.com/shiyi-log/orb-inspector` | GitHub Actions、标签和 Release 仍需单独核对。 |
+| 2026-10-24 | 创建公开远端并推送初始版本 | `gh repo create shiyi-log/orb-inspector --public ... --push`；`git remote -v` | 公开仓库已创建，`main` 已推送，远端 URL 为 `https://github.com/shiyi-log/orb-inspector` | GitHub Actions、标签和 Release 已在后续证据中核对。 |
+| 2026-10-24 | 最新台账提交的 CI 已完成 | GitHub Actions Run `40072052725`；提交 `0bce5cd5e6b29ca2e4d6a12dd331faf4fd329e16` | Job“Node.js 测试”为 `success` | 仍然只证明仓库测试通过，不证明运行时 UI 或本地化补丁安全。 |
 | 2026-10-24 | CI 与标签发布完成 | GitHub Actions Run `40071400278`、`40071857123`、`40071436013` | 两次主分支 CI 和一次标签发布均为 `success`；Release 页面已公开 | 运行时 UI、代码签名变化和自动更新兼容性仍未验收。 |
 | 2026-10-24 | 修正并验证 Release 校验清单 | `.github/workflows/release.yml`；Release `v0.1.0` 资产 `SHA256SUMS`；`shasum -a 256 -c SHA256SUMS` | 源码压缩包摘要校验为 `OK`，清单文件使用可直接下载验证的文件名 | 当前只验证发布资产完整性，不等于 OrbStack 运行时验收。 |
 
