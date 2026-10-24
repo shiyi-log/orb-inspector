@@ -10,6 +10,10 @@
 - 记录 `codesign` 签名信息和主程序格式；
 - 区分主应用资源与嵌套 Framework 资源；
 - 扫描 `.lproj`、`.strings`、`.stringsdict`、NIB、资产目录和 Web 资源；
+- 解析 `.strings` 键值、常见转义、注释和语法错误摘要；解析 `.stringsdict` 根级本地化键及 plist 结构错误摘要；
+- 对二进制 plist 形式的 `.strings` 使用系统 `plutil` 做只读 JSON 转换，并在报告中记录 `binary-plist` 编码；
+- 对二进制 plist 形式的 `.stringsdict` 只读取根级字典键，不执行复数格式化规则；
+- 生成 `localization_analysis`，汇总语言目录、文件格式、条目数量、语法错误和读取错误；单文件读取上限为 4 MiB，并拒绝越出 App Bundle 的资源路径；
 - 通过 Mach-O 的 `__cstring`/`__ustring` 区段提取有限的可打印字符串候选，并保留文件偏移和虚拟地址；
 - 为每条候选保留原始字节范围（`byte_start`、`byte_end`、`byte_length`）、编码和截断状态；
 - 在候选清单中保留独立的 `source_evidence`，记录字节范围、编码、截断状态和有限引用线索；候选 ID 仍只由原文和稳定源位置生成；
@@ -17,6 +21,7 @@
 - 通过 macOS `assetutil` 读取 `Assets.car` 元数据；
 - 根据字符串候选生成带风险分类的中文翻译清单；
 - 在 JSON 中区分观察事实、推断、未知项和限制。
+- 对截断或损坏的 fat Mach-O、thin Mach-O、加载命令和引用范围保留中文限制说明，尽量继续输出可审计的部分结果。
 
 ## 使用
 
@@ -88,7 +93,7 @@ Mach-O 报告中的 `reference_scan` 和每条字符串的 `references` 只表�
 
 建议把 `review` 的输出作为人工工作队列，把翻译映射和校验报告放在 `artifacts/` 等独立目录中。候选 ID 由原文和源位置的摘要稳定生成，重新分析同一份样本时应优先核对样本 SHA-256、版本、构建号和源位置。
 
-本次 OrbStack 2.2.5（Build 21124）arm64 样本的复现文件位于 `../artifacts/orbstack/`：最终分析报告是 `orb-inspector-10000-v10.json`，候选清单是 `orbstack-translation-candidates-v10.json`，审查队列是 `orbstack-review-queue-v10.json`，中文草稿和校验报告分别是 `translations.zh-CN.json` 与 `translations.zh-CN.v10.validation.json`。v10 规则将 10,000 条保留候选中的 UI 候选数量记录在报告中，但这个数量仍然不能替代运行时 UI 确认。
+本次 OrbStack 2.2.5（Build 21124）arm64 样本的复现文件位于 `../artifacts/orbstack/`：在 0.2.0 实现下，最终分析报告是 `orb-inspector-10000-v11.json`，候选清单是 `orbstack-translation-candidates-v11.json`，审查队列是 `orbstack-review-queue-v11.json`，中文草稿和校验报告分别是 `translations.zh-CN.json` 与 `translations.zh-CN.v11.validation.json`。v11 规则将 10,000 条保留候选中的 UI 候选数量记录在报告中，并额外记录本地化资源解析汇总；这些数量仍然不能替代运行时 UI 确认。
 
 ## 下一阶段：从字符串走向证据链
 

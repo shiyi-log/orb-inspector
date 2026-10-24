@@ -81,7 +81,7 @@ REA 对 DMG 的完整容器清单保存在：
 
 目录：`orb-inspector/`
 
-当前 MVP 提供一个只读 CLI：
+当前 MVP 提供一个只读 CLI，版本为 `0.2.0`：
 
 ```sh
 cd orb-inspector
@@ -99,25 +99,31 @@ node src/cli.mjs validate translation-candidates.json translations.zh-CN.json --
 - 主程序的 `file` 类型；
 - 主应用资源与嵌套 Framework 资源的区分；
 - `.lproj`、`.strings`、`.stringsdict`、Web 文件、NIB、资产目录和其他文件清单；
+- `.strings` 键值、二进制 plist 形式的 `.strings`、`.stringsdict` 根级键（包括二进制 plist 形式）、本地化语言和格式汇总，以及语法和读取错误摘要；
 - 主程序的有限字符串候选；
 - 带 `ui_candidate`、`diagnostic_or_status`、`formatted_message`、`metadata_or_identifier`、`path_or_protocol`、`third_party_component`、`code_symbol` 和 `runtime_token` 分类的候选清单；
 - 可按 UI 候选、风险、长度和数量筛选的人工审查队列；
 - 独立翻译映射的候选 ID、源文本、占位符和重复引用校验；
 - `observed`、`derived`、`unknowns` 和 `limitations` 字段。
+- 对本地化路径执行 Bundle 范围检查，对单文件读取设置 4 MiB 上限；对截断 Mach-O 输入保留限制并继续输出安全范围。
 
 工具接受 `.app` 或 `.dmg`。对于 DMG，它使用 `hdiutil` 只读挂载，并在 `finally` 路径中尝试卸载。工具不会执行 OrbStack，不会修改 App，不会去签名，也不会关闭系统保护。
 
 当前样本的可复现证据文件包括：
 
-- `artifacts/orbstack/orb-inspector-10000-v10.json`：10,000 条候选的完整分析报告；
-- `artifacts/orbstack/orbstack-translation-candidates-v10.json`：候选清单；
-- `artifacts/orbstack/orbstack-review-queue-v10.json`：UI 候选人工审查队列；
+- `artifacts/orbstack/orb-inspector-10000-v11.json`：0.2.0 规则下、含本地化资源汇总和 10,000 条候选的完整分析报告；
+- `artifacts/orbstack/orbstack-translation-candidates-v11.json`：候选清单；
+- `artifacts/orbstack/orbstack-review-queue-v11.json`：UI 候选人工审查队列；
 - `artifacts/orbstack/translations.zh-CN.json`：24 条高置信度 UI 翻译草稿；
-- `artifacts/orbstack/translations.zh-CN.v10.validation.json`：翻译映射校验报告。
+- `artifacts/orbstack/translations.zh-CN.v11.validation.json`：翻译映射校验报告。
 
 在 v10 规则下，10,000 条候选中有 2,937 条保留为 `ui_candidate`，4,595 条归入 `runtime_token`，1,230 条归入 `path_or_protocol`，715 条归入 `diagnostic_or_status`，其余为格式化消息、代码符号、标识符和第三方组件。这个统计描述规则输出，不等同于实际 UI 文案数量；审查队列仍需结合调用点和运行时页面人工确认。
 
-## 5. 下一阶段建议
+## 5. 0.2.0 实现记录
+
+本版本把本地化资源解析纳入报告，但仍保持“静态证据不等于运行时显示”的边界。`.strings` 解析器只还原键值和常见转义；`.stringsdict` 只记录根级键，不执行 plist 或格式化规则。解析失败会保留按文件的错误摘要，不会让单个坏文件中断整个 App 分析。Mach-O 解析器对 fat 架构表、切片、头部、加载命令、段范围和有限引用扫描范围执行安全边界校验。
+
+## 6. 下一阶段建议
 
 ### 第一优先级：提高证据质量
 
@@ -153,6 +159,6 @@ node src/cli.mjs validate translation-candidates.json translations.zh-CN.json --
 4. 最后才评估翻译映射、格式化参数、链接结构和签名变化；
 5. 任何补丁实验都必须保留原始样本和恢复路径，不能覆盖原始 App。
 
-## 6. 边界
+## 7. 边界
 
 本项目可以用于自有软件、获得授权的软件或安全研究环境中的静态分析。当前实现不包含绕过授权、破解付费功能、禁用代码签名、注入第三方进程或规避更新器保护的功能。

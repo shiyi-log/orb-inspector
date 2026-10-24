@@ -100,28 +100,41 @@ function parseFatMachO(bytes, options) {
   const magic = bytes.readUInt32BE(0);
   const is64 = magic === FAT_MAGIC_64 || magic === FAT_CIGAM_64;
   const littleEndian = magic === FAT_CIGAM || magic === FAT_CIGAM_64;
-  const read32 = (offset) => (littleEndian ? bytes.readUInt32LE(offset) : bytes.readUInt32BE(offset));
-  const read64 = (offset) =>
-    littleEndian ? Number(bytes.readBigUInt64LE(offset)) : Number(bytes.readBigUInt64BE(offset));
-  const count = read32(4);
-  const entrySize = is64 ? 32 : 20;
-  const entries = [];
-  for (let index = 0; index < count; index += 1) {
-    const base = 8 + index * entrySize;
-    if (base + entrySize > bytes.length) break;
-    const cpuType = read32(base);
-    const offset = is64 ? read64(base + 8) : read32(base + 8);
-    const size = is64 ? read64(base + 16) : read32(base + 12);
-    entries.push({ cpuType, offset, size });
-  }
-  const selected = entries.find((entry) => entry.cpuType === CPU_TYPE_ARM64) ?? entries[0];
-  if (!selected || selected.offset + selected.size > bytes.length) {
+  if (bytes.length < 8) {
     return {
       format: "fat-macho",
       architecture: null,
       ranges: [],
       reference_ranges: [],
-      limitations: ["通用 Mach-O 没有可读取的有限架构切片。"],
+      limitations: ["通用 Mach-O 头部已截断，无法读取架构数量。"],
+    };
+  }
+  const read32 = (offset) => (littleEndian ? bytes.readUInt32LE(offset) : bytes.readUInt32BE(offset));
+  const read64 = (offset) =>
+    littleEndian ? bytes.readBigUInt64LE(offset) : bytes.readBigUInt64BE(offset);
+  const count = read32(4);
+  const entrySize = is64 ? 32 : 20;
+  const limitations = [];
+  const entries = [];
+  const readableCount = Math.min(count, Math.floor((bytes.length - 8) / entrySize));
+  if (readableCount < count) limitations.push("通用 Mach-O 架构表已截断或格式错误。");
+  for (let index = 0; index < readableCount; index += 1) {
+    const base = 8 + index * entrySize;
+    const cpuType = read32(base);
+    const rawOffset = is64 ? read64(base + 8) : BigInt(read32(base + 8));
+    const rawSize = is64 ? read64(base + 16) : BigInt(read32(base + 12));
+    const offset = rawOffset <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(rawOffset) : null;
+    const size = rawSize <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(rawSize) : null;
+    entries.push({ cpuType, offset, size });
+  }
+  const selected = entries.find((entry) => entry.cpuType === CPU_TYPE_ARM64) ?? entries[0];
+  if (!selected || selected.size < 4 || !isValidRange(selected.offset, selected.size, bytes.length)) {
+    return {
+      format: "fat-macho",
+      architecture: null,
+      ranges: [],
+      reference_ranges: [],
+      limitations: [...limitations, "通用 Mach-O 没有可读取的有限架构切片。"],
     };
   }
   const result = parseThinMachO(bytes, selected.offset, selected.size, options);
@@ -129,14 +142,26 @@ function parseFatMachO(bytes, options) {
     ...result,
     format: "fat-macho",
     architecture: selected.cpuType === CPU_TYPE_ARM64 ? "arm64" : result.architecture,
-    limitations: ["通用二进制分析只选择了其中一个架构切片。", ...result.limitations],
+    limitations: ["通用二进制分析只选择了其中一个架构切片。", ...limitations, ...result.limitations],
   };
 }
 
 function parseThinMachO(bytes, baseOffset, availableSize, options) {
+  if (!isValidRange(baseOffset, availableSize, bytes.length) || availableSize < 4) {
+    return {
+      format: "unknown",
+      architecture: null,
+      ranges: isValidRange(baseOffset, availableSize, bytes.length) && availableSize > 0
+        ? [{ fileOffset: baseOffset, fileSize: availableSize, section: null, segment: null, virtualAddress: null }]
+        : [],
+      reference_ranges: [],
+      limitations: ["Mach-O 头部已截断，无法安全读取加载命令。"],
+    };
+  }
   const localMagic = bytes.readUInt32BE(baseOffset);
   const littleEndian = localMagic === MH_CIGAM || localMagic === MH_CIGAM_64;
   const is64 = localMagic === MH_MAGIC_64 || localMagic === MH_CIGAM_64;
+  const headerSize = is64 ? 32 : 28;
   if (![MH_MAGIC, MH_CIGAM, MH_MAGIC_64, MH_CIGAM_64].includes(localMagic)) {
     return {
       format: "unknown",
@@ -151,15 +176,37 @@ function parseThinMachO(bytes, baseOffset, availableSize, options) {
     littleEndian ? bytes.readUInt32LE(offset) : bytes.readUInt32BE(offset);
   const read64 = (offset) =>
     littleEndian ? Number(bytes.readBigUInt64LE(offset)) : Number(bytes.readBigUInt64BE(offset));
+  if (availableSize < 8 || baseOffset + 8 > bytes.length) {
+    return {
+      format: is64 ? "mach-o-64" : "mach-o-32",
+      architecture: null,
+      ranges: [{ fileOffset: baseOffset, fileSize: availableSize, section: null, segment: null, virtualAddress: null }],
+      reference_ranges: [],
+      limitations: ["Mach-O 头部已截断，无法安全读取 CPU 类型。"],
+    };
+  }
   const cpuType = read32(baseOffset + 4);
+  if (availableSize < headerSize || baseOffset + headerSize > bytes.length) {
+    return {
+      format: is64 ? "mach-o-64" : "mach-o-32",
+      architecture: cpuType === CPU_TYPE_ARM64 ? "arm64" : cpuName(cpuType),
+      ranges: [{ fileOffset: baseOffset, fileSize: availableSize, section: null, segment: null, virtualAddress: null }],
+      reference_ranges: [],
+      limitations: ["Mach-O 头部已截断，无法安全读取加载命令。"],
+    };
+  }
   const ncmds = read32(baseOffset + 16);
-  const headerSize = is64 ? 32 : 28;
   const commandStart = baseOffset + headerSize;
-  const commandEnd = Math.min(baseOffset + availableSize, commandStart + read32(baseOffset + 20));
+  const declaredCommandBytes = read32(baseOffset + 20);
+  const commandEnd = Math.min(baseOffset + availableSize, commandStart + declaredCommandBytes);
   const ranges = [];
   const limitations = [];
+  if (commandStart + declaredCommandBytes > baseOffset + availableSize) {
+    limitations.push("加载命令表已截断或超出 Mach-O 切片范围。");
+  }
 
   let cursor = commandStart;
+  let parsedCommands = 0;
   for (let index = 0; index < ncmds && cursor + 8 <= commandEnd; index += 1) {
     const command = read32(cursor);
     const commandSize = read32(cursor + 4);
@@ -168,6 +215,13 @@ function parseThinMachO(bytes, baseOffset, availableSize, options) {
       break;
     }
     if ((is64 && command === LC_SEGMENT_64) || (!is64 && command === LC_SEGMENT)) {
+      const minimumSegmentSize = is64 ? 72 : 56;
+      if (commandSize < minimumSegmentSize) {
+        limitations.push("段加载命令长度不足，已跳过其字段读取。");
+        cursor += commandSize;
+        parsedCommands += 1;
+        continue;
+      }
       const segment = readFixedString(bytes, cursor + 8, 16);
       const vmAddress = is64 ? read64(cursor + 24) : read32(cursor + 24);
       const fileOffset = is64 ? read64(cursor + 40) : read32(cursor + 32);
@@ -175,7 +229,7 @@ function parseThinMachO(bytes, baseOffset, availableSize, options) {
       const sectionCount = is64 ? read32(cursor + 64) : read32(cursor + 48);
       const sectionStart = cursor + (is64 ? 72 : 56);
       const sectionSize = is64 ? 80 : 68;
-      if (fileSize > 0 && fileOffset + fileSize <= availableSize) {
+      if (fileSize > 0 && isValidRange(fileOffset, fileSize, availableSize)) {
         ranges.push({
           fileOffset: baseOffset + fileOffset,
           fileSize,
@@ -195,7 +249,7 @@ function parseThinMachO(bytes, baseOffset, availableSize, options) {
         const flags = read32(sectionOffset + (is64 ? 64 : 56));
         const sectionType = flags & 0xff;
         const isZeroFill = sectionType === 0x1 || sectionType === 0xc;
-        if (!isZeroFill && size > 0 && rawOffset + size <= availableSize) {
+        if (!isZeroFill && size > 0 && isValidRange(rawOffset, size, availableSize)) {
           ranges.push({
             fileOffset: baseOffset + rawOffset,
             fileSize: size,
@@ -207,6 +261,10 @@ function parseThinMachO(bytes, baseOffset, availableSize, options) {
       }
     }
     cursor += commandSize;
+    parsedCommands += 1;
+  }
+  if (parsedCommands < ncmds) {
+    limitations.push("声明的加载命令数量超过了可读取范围。");
   }
 
   const stringSectionRanges = ranges.filter(
@@ -297,10 +355,10 @@ export function scanStringReferences(bytes, strings, ranges, options = {}) {
 
   let scannedBytes = 0;
   let matches = 0;
-  for (const range of scanRanges) {
-    const start = Math.max(0, Number(range?.fileOffset ?? 0));
-    const end = Math.min(bytes.length, start + Math.max(0, Number(range?.fileSize ?? 0)));
-    if (end - start < 8) continue;
+  const normalizedRanges = normalizeReferenceRanges(bytes.length, scanRanges);
+  for (const range of normalizedRanges) {
+    const start = range.fileOffset;
+    const end = start + range.fileSize;
     scannedBytes += end - start;
     for (let offset = start; offset + 8 <= end; offset += 8) {
       const value = Number(bytes.readBigUInt64LE(offset));
@@ -327,9 +385,9 @@ export function scanStringReferences(bytes, strings, ranges, options = {}) {
     references,
     reference_counts: referenceCounts,
     summary: {
-      status: targets.size > 0 && scanRanges.length > 0 ? "bounded-pointer-scan" : "not-run",
+      status: targets.size > 0 && normalizedRanges.length > 0 ? "bounded-pointer-scan" : "not-run",
       target_count: targets.size,
-      scanned_ranges: scanRanges.length,
+      scanned_ranges: normalizedRanges.length,
       scanned_bytes: scannedBytes,
       matches,
       limitations: [
@@ -345,6 +403,46 @@ function isPrintableAscii(value) {
   return value >= 0x20 && value <= 0x7e;
 }
 
+function isValidRange(offset, size, limit) {
+  return (
+    Number.isSafeInteger(offset) &&
+    Number.isSafeInteger(size) &&
+    Number.isSafeInteger(limit) &&
+    offset >= 0 &&
+    size >= 0 &&
+    limit >= 0 &&
+    offset <= limit &&
+    size <= limit - offset
+  );
+}
+
+function normalizeReferenceRanges(byteLength, ranges) {
+  const bounded = [];
+  const seen = new Set();
+  for (const range of ranges) {
+    const start = Number(range?.fileOffset);
+    const size = Number(range?.fileSize);
+    if (!isValidRange(start, size, byteLength) || size < 8) continue;
+    const key = `${start}:${size}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    bounded.push({ ...range, fileOffset: start, fileSize: size });
+  }
+  bounded.sort((left, right) => left.fileOffset - right.fileOffset);
+  const normalized = [];
+  for (const range of bounded) {
+    const previous = normalized[normalized.length - 1];
+    const previousEnd = previous ? previous.fileOffset + previous.fileSize : 0;
+    const sameAlignment = previous && (range.fileOffset - previous.fileOffset) % 8 === 0;
+    if (sameAlignment && range.fileOffset <= previousEnd) {
+      previous.fileSize = Math.max(previousEnd, range.fileOffset + range.fileSize) - previous.fileOffset;
+      continue;
+    }
+    normalized.push(range);
+  }
+  return normalized;
+}
+
 function deduplicateStrings(values) {
   const seen = new Set();
   return values.filter((entry) => {
@@ -358,7 +456,7 @@ function deduplicateStrings(values) {
 function mergeRanges(ranges) {
   const seen = new Set();
   return ranges.filter((range) => {
-    const key = `${range.fileOffset}:${range.fileSize}:${range.section ?? ""}`;
+    const key = `${range.fileOffset}:${range.fileSize}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { inspectAssetCatalog } from "./assets.mjs";
@@ -21,6 +21,8 @@ const TEXT_EXTENSIONS = new Set([
   ".xml",
 ]);
 
+const MAX_LOCALIZATION_FILE_BYTES = 4 * 1024 * 1024;
+
 export async function analyzeInput(inputPath, options = {}) {
   const input = resolve(inputPath);
   const inputStat = await stat(input);
@@ -38,6 +40,7 @@ export async function analyzeInput(inputPath, options = {}) {
     limitations: [
       "静态检查不能证明运行时行为，也不能证明某条 UI 路径可访问。",
       "从原生二进制提取的字符串只是候选清单，不是本地化目录。",
+      "本地化资源解析只读取静态键值和结构摘要，不执行目标程序逻辑或格式化规则。",
     ],
   };
 
@@ -159,6 +162,10 @@ async function inspectAppBundle(appPath, options, source = {}) {
         ),
       );
 
+  const localizationAnalysis = options.localization === false
+    ? null
+    : await inspectLocalizationResources(appPath, resources.localizationFiles);
+
   const stringRecords = executable?.strings?.records ?? [];
   const translationCandidates = options.candidates === false
     ? null
@@ -218,6 +225,7 @@ async function inspectAppBundle(appPath, options, source = {}) {
     signature_details: parseCodeSignature(signature),
     executable,
     asset_catalog_analysis: assetCatalogAnalysis,
+    localization_analysis: localizationAnalysis,
     translation_candidates: translationCandidates,
     inventory: {
       file_count: relativeFiles.length,
@@ -333,6 +341,334 @@ async function extractExecutableStrings(path, options = {}) {
   }
 }
 
+export async function inspectLocalizationResources(appPath, paths = []) {
+  const files = [];
+  for (const path of paths) {
+    const format = extname(path).toLowerCase() === ".stringsdict" ? "stringsdict" : "strings";
+    const record = {
+      path,
+      language: localizationLanguage(path),
+      format,
+      encoding: null,
+      entry_count: 0,
+      entries: [],
+      syntax_errors: [],
+      read_error: null,
+    };
+    try {
+      const rootPath = await realpath(resolve(appPath));
+      const absolutePath = resolve(rootPath, path);
+      const relativePath = relative(rootPath, absolutePath);
+      if (isOutsideBundle(relativePath)) {
+        throw new Error("资源路径超出应用 Bundle 范围");
+      }
+      const resolvedPath = await realpath(absolutePath);
+      if (isOutsideBundle(relative(rootPath, resolvedPath))) {
+        throw new Error("资源符号链接超出应用 Bundle 范围");
+      }
+      const info = await stat(resolvedPath);
+      if (!info.isFile()) throw new Error("资源路径不是普通文件");
+      if (info.size > MAX_LOCALIZATION_FILE_BYTES) {
+        throw new Error(`文件超过 ${MAX_LOCALIZATION_FILE_BYTES} 字节的只读分析上限`);
+      }
+      const raw = await readFile(resolvedPath);
+      const parsed = format === "strings"
+        ? await parseStringsResource(raw, resolvedPath)
+        : await parseStringsDictResource(raw, resolvedPath);
+      record.encoding = parsed.encoding ?? null;
+      record.entry_count = parsed.entry_count;
+      record.entries = parsed.entries;
+      record.syntax_errors = parsed.syntax_errors;
+      if (parsed.read_error) record.read_error = parsed.read_error;
+    } catch (error) {
+      record.read_error = {
+        code: "read-failed",
+        detail: String(error?.message ?? error),
+      };
+    }
+    files.push(record);
+  }
+
+  const languageCounts = {};
+  const formatCounts = {};
+  let parsedFileCount = 0;
+  let entryCount = 0;
+  let syntaxErrorCount = 0;
+  let readErrorCount = 0;
+  for (const file of files) {
+    const language = file.language ?? "unknown";
+    languageCounts[language] = (languageCounts[language] ?? 0) + 1;
+    formatCounts[file.format] = (formatCounts[file.format] ?? 0) + 1;
+    if (file.read_error) {
+      readErrorCount += 1;
+      continue;
+    }
+    parsedFileCount += 1;
+    entryCount += file.entry_count;
+    syntaxErrorCount += file.syntax_errors.length;
+  }
+  return {
+    schema: "orb-inspector/localization-v0.1",
+    files,
+    summary: {
+      file_count: files.length,
+      parsed_file_count: parsedFileCount,
+      entry_count: entryCount,
+      language_counts: languageCounts,
+      languages: Object.keys(languageCounts).sort(),
+      format_counts: formatCounts,
+      syntax_error_count: syntaxErrorCount,
+      read_error_count: readErrorCount,
+    },
+    limits: {
+      max_file_bytes: MAX_LOCALIZATION_FILE_BYTES,
+    },
+  };
+}
+
+function isOutsideBundle(relativePath) {
+  return isAbsolute(relativePath) || relativePath === ".." || relativePath.startsWith(`..${relativePath.includes("\\") ? "\\" : "/"}`);
+}
+
+export function parseStringsContent(content) {
+  const source = String(content ?? "").replace(/^\uFEFF/, "");
+  const entries = [];
+  const syntaxErrors = [];
+  let index = 0;
+
+  while (index < source.length) {
+    index = skipStringsWhitespaceAndComments(source, index, syntaxErrors);
+    if (index >= source.length) break;
+    const line = lineColumnAt(source, index);
+    const key = readQuotedString(source, index);
+    if (!key.ok) {
+      syntaxErrors.push({ code: "expected-key", line: line.line, column: line.column, message: "期望以双引号开始键" });
+      index = synchronizeStringsParser(source, index);
+      continue;
+    }
+    index = key.next;
+    index = skipStringsWhitespaceAndComments(source, index, syntaxErrors);
+    if (source[index] !== "=") {
+      syntaxErrors.push({ code: "expected-equals", ...lineColumnAt(source, index), message: "键后缺少等号" });
+      index = synchronizeStringsParser(source, index);
+      continue;
+    }
+    index += 1;
+    index = skipStringsWhitespaceAndComments(source, index, syntaxErrors);
+    const value = readQuotedString(source, index);
+    if (!value.ok) {
+      syntaxErrors.push({ code: "expected-value", ...lineColumnAt(source, index), message: "等号后缺少双引号包裹的值" });
+      index = synchronizeStringsParser(source, index);
+      continue;
+    }
+    index = value.next;
+    index = skipStringsWhitespaceAndComments(source, index, syntaxErrors, { stopAtNewline: true });
+    if (source[index] !== ";") {
+      syntaxErrors.push({ code: "expected-semicolon", ...lineColumnAt(source, index), message: "本地化条目后缺少分号" });
+      index = synchronizeStringsParser(source, index);
+      continue;
+    }
+    index += 1;
+    entries.push({ key: key.value, value: value.value });
+  }
+
+  return {
+    format: "strings",
+    entry_count: entries.length,
+    entries,
+    syntax_errors: syntaxErrors,
+  };
+}
+
+async function parseStringsResource(raw, absolutePath) {
+  if (raw.subarray(0, 8).toString("ascii") === "bplist00") {
+    const plist = await readPlist(absolutePath);
+    if (plist && typeof plist === "object" && !plist._read_error) {
+      const entries = Object.entries(plist)
+        .filter(([key, value]) => typeof value === "string")
+        .map(([key, value]) => ({ key, value }));
+      return { format: "strings", encoding: "binary-plist", entry_count: entries.length, entries, syntax_errors: [] };
+    }
+    return {
+      format: "strings",
+      encoding: "binary-plist",
+      entry_count: 0,
+      entries: [],
+      syntax_errors: [],
+      read_error: { code: "plist-read-failed", detail: String(plist?._read_error ?? "无法读取二进制 plist") },
+    };
+  }
+  const decoded = decodeLocalizationText(raw);
+  return {
+    ...parseStringsContent(decoded.text),
+    encoding: decoded.encoding,
+  };
+}
+
+async function parseStringsDictResource(raw, absolutePath) {
+  if (raw.subarray(0, 8).toString("ascii") === "bplist00") {
+    const plist = await readPlist(absolutePath);
+    if (plist && typeof plist === "object" && !plist._read_error) {
+      const entries = Object.entries(plist)
+        .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+        .map(([key]) => ({ key, value: null }));
+      return { format: "stringsdict", encoding: "binary-plist", entry_count: entries.length, entries, syntax_errors: [] };
+    }
+    return {
+      format: "stringsdict",
+      encoding: "binary-plist",
+      entry_count: 0,
+      entries: [],
+      syntax_errors: [],
+      read_error: { code: "plist-read-failed", detail: String(plist?._read_error ?? "无法读取二进制 plist") },
+    };
+  }
+  const decoded = decodeLocalizationText(raw);
+  return {
+    ...parseStringsDictContent(decoded.text),
+    encoding: decoded.encoding,
+  };
+}
+
+function decodeLocalizationText(raw) {
+  if (raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe) {
+    return { text: raw.subarray(2).toString("utf16le"), encoding: "utf-16le" };
+  }
+  if (raw.length >= 2 && raw[0] === 0xfe && raw[1] === 0xff) {
+    const swapped = Buffer.alloc(raw.length - 2);
+    for (let index = 2; index + 1 < raw.length; index += 2) {
+      swapped[index - 2] = raw[index + 1];
+      swapped[index - 1] = raw[index];
+    }
+    return { text: swapped.toString("utf16le"), encoding: "utf-16be" };
+  }
+  return { text: raw.toString("utf8"), encoding: "utf-8" };
+}
+
+export function parseStringsDictContent(content) {
+  const source = String(content ?? "").replace(/^\uFEFF/, "");
+  const withoutComments = source.replace(/<!--[\s\S]*?-->/g, "");
+  const syntaxErrors = [];
+  if (!/<plist\b[^>]*>/i.test(withoutComments)) {
+    syntaxErrors.push({ code: "missing-plist", line: 1, column: 1, message: "缺少 plist 根元素" });
+  }
+  if (!/<dict\b[^>]*>/i.test(withoutComments)) {
+    syntaxErrors.push({ code: "missing-dict", line: 1, column: 1, message: "缺少 dict 元素" });
+  }
+  const openingKeys = (withoutComments.match(/<key\b[^>]*>/gi) ?? []).length;
+  const closingKeys = (withoutComments.match(/<\/key\s*>/gi) ?? []).length;
+  if (openingKeys !== closingKeys) {
+    syntaxErrors.push({ code: "unclosed-key", line: 1, column: 1, message: "key 元素未闭合" });
+  }
+
+  const entries = [];
+  const keyPattern = /<key\b[^>]*>\s*([\s\S]*?)\s*<\/key\s*>/gi;
+  const dictTags = [...withoutComments.matchAll(/<\/?dict\b[^>]*>/gi)];
+  for (const match of withoutComments.matchAll(keyPattern)) {
+    const depth = dictTags.reduce((current, tag) => {
+      if (tag.index >= match.index) return current;
+      if (/^<\/dict/i.test(tag[0])) return current - 1;
+      return /\/\s*>$/.test(tag[0]) ? current : current + 1;
+    }, 0);
+    const afterKey = withoutComments.slice(match.index + match[0].length);
+    if (depth === 1 && /^\s*<dict\b[^>]*>/i.test(afterKey)) {
+      entries.push({ key: decodeXmlText(match[1]), value: null });
+    }
+  }
+  return {
+    format: "stringsdict",
+    entry_count: entries.length,
+    entries,
+    syntax_errors: syntaxErrors,
+  };
+}
+
+function localizationLanguage(path) {
+  const component = String(path).split(/[\\/]/).find((part) => /\.lproj$/i.test(part));
+  return component ? component.replace(/\.lproj$/i, "") : null;
+}
+
+function skipStringsWhitespaceAndComments(source, start, syntaxErrors, options = {}) {
+  let index = start;
+  while (index < source.length) {
+    if (options.stopAtNewline && (source[index] === "\n" || source[index] === "\r")) break;
+    if (/\s/.test(source[index])) {
+      index += 1;
+      continue;
+    }
+    if (source.startsWith("//", index)) {
+      const newline = source.indexOf("\n", index + 2);
+      index = newline === -1 ? source.length : newline + 1;
+      continue;
+    }
+    if (source.startsWith("/*", index)) {
+      const end = source.indexOf("*/", index + 2);
+      if (end === -1) {
+        syntaxErrors.push({ code: "unclosed-comment", ...lineColumnAt(source, index), message: "块注释未闭合" });
+        return source.length;
+      }
+      index = end + 2;
+      continue;
+    }
+    break;
+  }
+  return index;
+}
+
+function readQuotedString(source, start) {
+  if (source[start] !== '"') return { ok: false };
+  let index = start + 1;
+  let value = "";
+  while (index < source.length) {
+    const character = source[index];
+    if (character === '"') return { ok: true, value, next: index + 1 };
+    if (character === "\n" || character === "\r") return { ok: false };
+    if (character !== "\\") {
+      value += character;
+      index += 1;
+      continue;
+    }
+    const escaped = source[index + 1];
+    if (escaped === undefined) return { ok: false };
+    const escapes = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f", "\\": "\\", '"': '"' };
+    if (Object.hasOwn(escapes, escaped)) {
+      value += escapes[escaped];
+      index += 2;
+      continue;
+    }
+    if (escaped === "u" && /^[0-9a-f]{4}$/i.test(source.slice(index + 2, index + 6))) {
+      value += String.fromCharCode(Number.parseInt(source.slice(index + 2, index + 6), 16));
+      index += 6;
+      continue;
+    }
+    value += escaped;
+    index += 2;
+  }
+  return { ok: false };
+}
+
+function synchronizeStringsParser(source, start) {
+  let index = start;
+  while (index < source.length && source[index] !== ";" && source[index] !== "\n") index += 1;
+  return index < source.length && source[index] === ";" ? index + 1 : index;
+}
+
+function lineColumnAt(source, index) {
+  const prefix = source.slice(0, Math.max(0, index));
+  const lines = prefix.split("\n");
+  return { line: lines.length, column: lines.at(-1).length + 1 };
+}
+
+function decodeXmlText(value) {
+  return String(value)
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
 async function listFiles(root) {
   const output = [];
   async function visit(path) {
@@ -408,6 +744,21 @@ function deriveLocalizationFindings(app) {
       kind: "translation-candidate-manifest",
       confidence: "derived",
       detail: `创建了 ${summary.total} 条稳定翻译候选：${summary.categories.ui_candidate ?? 0} 条 UI 候选，${summary.risks.review ?? 0} 条审查项。`,
+    });
+  }
+  if ((app.localization_analysis?.summary?.entry_count ?? 0) > 0) {
+    const summary = app.localization_analysis.summary;
+    findings.push({
+      kind: "localization-key-values-observed",
+      confidence: "observed",
+      detail: `解析了 ${summary.entry_count} 个本地化键，覆盖 ${summary.languages.length} 种语言目录。`,
+    });
+  }
+  if ((app.localization_analysis?.summary?.syntax_error_count ?? 0) > 0) {
+    findings.push({
+      kind: "localization-syntax-errors-observed",
+      confidence: "observed",
+      detail: `本地化资源中发现 ${app.localization_analysis.summary.syntax_error_count} 个语法错误摘要。`,
     });
   }
   if (inventory.javascript_or_web_files.length === 0) {

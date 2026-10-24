@@ -1,6 +1,6 @@
 {
   "name": "orb-inspector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "面向本地化研究和静态逆向前置检查的只读 macOS 应用分析工具。",
   "type": "module",
